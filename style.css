@@ -295,6 +295,48 @@ table th, table td {
 .grand-total { font-size: 17px; font-weight: 800; color: #0f172a; border-top: 2px solid #0f172a; padding-top: 6px; }
 .receipt-footer { text-align: center; margin-top: 16px; color: var(--muted); }
 
+.esewa-pay-card {
+  border-left: 4px solid #60a5fa;
+}
+
+.esewa-pay-wrap {
+  display: grid;
+  grid-template-columns: minmax(220px, 260px) 1fr;
+  gap: 18px;
+  align-items: start;
+}
+
+.esewa-qr-block {
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+  text-align: center;
+}
+
+.esewa-qr {
+  width: 100%;
+  max-width: 220px;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.esewa-qr-block p {
+  font-size: 13px;
+  color: var(--muted);
+  margin: 10px 0 0;
+}
+
+.esewa-info-block {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+  display: grid;
+  gap: 8px;
+}
+
 /* Print tweaks */
 @media print {
   .sidebar, .no-print { display: none !important; }
@@ -313,4 +355,5 @@ table th, table td {
   .inline-form > * { flex: 1 1 100%; }
   .order-meta { flex-direction: column; align-items: stretch; }
   .stats-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+  .esewa-pay-wrap { grid-template-columns: 1fr; }
 }
