@@ -15,9 +15,66 @@ CREATE TABLE IF NOT EXISTS users (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Default admin  (password: Admin@123)
+-- Upgrade older installs where `users.username` did not exist
+SET @col_exists := (
+    SELECT COUNT(*)
+    FROM information_schema.columns
+    WHERE table_schema = DATABASE()
+      AND table_name = 'users'
+      AND column_name = 'username'
+);
+SET @sql := IF(@col_exists = 0,
+    'ALTER TABLE users ADD COLUMN username VARCHAR(100) NULL AFTER name',
+    'SELECT 1'
+);
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- Ensure username has values for legacy rows
+UPDATE users
+SET username = CONCAT('user', id)
+WHERE username IS NULL OR TRIM(username) = '';
+
+-- Add unique index if missing
+SET @idx_exists := (
+    SELECT COUNT(*)
+    FROM information_schema.statistics
+    WHERE table_schema = DATABASE()
+      AND table_name = 'users'
+      AND index_name = 'uq_users_username'
+);
+SET @sql := IF(@idx_exists = 0,
+    'ALTER TABLE users ADD UNIQUE KEY uq_users_username (username)',
+    'SELECT 1'
+);
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- Keep username non-null for application-level inserts
+SET @is_nullable := (
+    SELECT is_nullable
+    FROM information_schema.columns
+    WHERE table_schema = DATABASE()
+      AND table_name = 'users'
+      AND column_name = 'username'
+    LIMIT 1
+);
+SET @sql := IF(@is_nullable = 'YES',
+    'ALTER TABLE users MODIFY COLUMN username VARCHAR(100) NOT NULL',
+    'SELECT 1'
+);
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- Default admin  (password: password)
 INSERT INTO users (name, username, email, password, role) VALUES
-('Admin', 'admin', 'admin@nepdine.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'admin');
+('Admin', 'admin', 'admin@nepdine.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'admin')
+ON DUPLICATE KEY UPDATE
+name = VALUES(name),
+role = VALUES(role);
 
 -- ─── WAITERS ──────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS waiters (
