@@ -94,7 +94,7 @@ CREATE TABLE IF NOT EXISTS restaurant_tables (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-INSERT INTO restaurant_tables (table_name, capacity) VALUES
+INSERT IGNORE INTO restaurant_tables (table_name, capacity) VALUES
 ('Table 1', 4), ('Table 2', 4), ('Table 3', 6), ('Table 4', 2), ('Table 5', 8);
 
 -- ─── MENU CATEGORIES ─────────────────────────────────────
@@ -103,7 +103,7 @@ CREATE TABLE IF NOT EXISTS categories (
     category_name VARCHAR(100) NOT NULL UNIQUE
 );
 
-INSERT INTO categories (category_name) VALUES ('Starter'), ('Main Course'), ('Drinks'), ('Dessert');
+INSERT IGNORE INTO categories (category_name) VALUES ('Starter'), ('Main Course'), ('Drinks'), ('Dessert');
 
 -- ─── MENU ITEMS ──────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS menu_items (
@@ -116,7 +116,7 @@ CREATE TABLE IF NOT EXISTS menu_items (
     FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE
 );
 
-INSERT INTO menu_items (category_id, item_name, price) VALUES
+INSERT IGNORE INTO menu_items (category_id, item_name, price) VALUES
 (1, 'Spring Rolls',     150.00),
 (1, 'Chicken Soup',     130.00),
 (1, 'Garlic Bread',     100.00),
