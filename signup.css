@@ -1,0 +1,102 @@
+/* ============================================================
+   Signup Page – NepDine
+   Clean, consistent theme (matches login)
+   ============================================================ */
+:root {
+  --bg: #f5f7fb;
+  --surface: #ffffff;
+  --border: #e2e8f0;
+  --text: #0f172a;
+  --muted: #64748b;
+  --primary: #2563eb;
+  --primary-strong: #1d4ed8;
+  --radius: 14px;
+  --shadow: 0 12px 32px rgba(15, 23, 42, 0.12);
+  font-family: 'Inter', 'Poppins', Arial, sans-serif;
+}
+* { box-sizing: border-box; }
+
+.registration-body {
+  margin: 0;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at 15% 20%, #e0eaff 0, #f5f7fb 38%, #ffffff 78%);
+  padding: 32px 16px;
+  color: var(--text);
+}
+
+.main-card {
+  width: 100%;
+  max-width: 960px;
+  background: #fff;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  border: 1px solid var(--border);
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+}
+
+.left-panel {
+  position: relative;
+  padding: 44px 48px;
+  background: linear-gradient(180deg, #ffffff 0%, #f5f7fb 100%);
+}
+.back-arrow-link { position: absolute; top: 18px; left: 18px; color: var(--primary); text-decoration: none; }
+.back-arrow-link:hover { color: var(--primary-strong); }
+
+.welcome-text-container { margin: 8px 0 18px; }
+.welcome-title { margin: 0 0 8px; font-size: 30px; font-weight: 800; }
+.welcome-title .text-dark { color: var(--text); }
+.welcome-title .text-orange { color: var(--primary); }
+.welcome-subtitle { margin: 0 0 14px; color: var(--muted); }
+
+.registration-form { display: flex; flex-direction: column; gap: 14px; }
+.form-field { width: 100%; }
+.input-label { font-size: 14px; color: var(--muted); font-weight: 600; display: block; margin-bottom: 6px; }
+.input-field {
+  width: 100%; padding: 12px 14px; border-radius: 12px;
+  border: 1px solid var(--border); background: #fff; font-size: 15px;
+  transition: border 0.2s, box-shadow 0.2s;
+}
+.input-field:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 2px rgba(37,99,235,0.18); }
+
+.password-wrapper { position: relative; }
+.toggle-eye { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); cursor: pointer; color: var(--muted); }
+
+.register-btn {
+  width: 100%; padding: 14px; border: none; border-radius: 12px;
+  background: linear-gradient(135deg, #2563eb, #0ea5e9);
+  color: #fff; font-size: 16px; font-weight: 700;
+  cursor: pointer; transition: transform 0.15s ease, box-shadow 0.2s;
+  box-shadow: 0 10px 25px rgba(37,99,235,0.25);
+}
+.register-btn:hover { transform: translateY(-1px); box-shadow: 0 14px 30px rgba(37,99,235,0.28); }
+
+.signup-text { color: var(--muted); font-size: 14px; }
+.signup-text a { color: var(--primary); font-weight: 600; text-decoration: none; }
+.signup-text a:hover { text-decoration: underline; }
+
+.alert-error { background: #fee2e2; color: #991b1b; border: 1px solid #fecdd3; border-radius: 12px; padding: 12px 14px; margin-bottom: 14px; }
+.alert-success { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; border-radius: 12px; padding: 12px 14px; margin-bottom: 14px; }
+
+/* Right visual panel */
+.right-panel {
+  background: linear-gradient(180deg, #0f172a, #111827);
+  color: #e2e8f0;
+  padding: 44px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 12px;
+}
+.right-panel h3 { margin: 0; font-size: 22px; color: #fff; }
+.right-panel p  { margin: 0; color: #cbd5e1; }
+
+@media (max-width: 900px) {
+  .main-card { grid-template-columns: 1fr; }
+  .right-panel { display: none; }
+  .left-panel { padding: 36px 28px; }
+}
