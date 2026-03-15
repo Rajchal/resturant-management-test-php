@@ -165,7 +165,7 @@ CREATE TABLE IF NOT EXISTS bills (
     tax_percent   DECIMAL(5,2)  DEFAULT 13.00,
     tax_amount    DECIMAL(10,2) NOT NULL,
     total_amount  DECIMAL(10,2) NOT NULL,
-    payment_method ENUM('cash','card','esewa','khalti') DEFAULT 'cash',
+    payment_method ENUM('cash','card','esewa') DEFAULT 'cash',
     generated_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (order_id) REFERENCES orders(id)
 );

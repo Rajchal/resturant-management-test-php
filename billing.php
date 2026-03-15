@@ -124,8 +124,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['esewa_status'], $_GET['
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['finalize'])) {
     $order_id      = (int)$_POST['order_id'];
     $payment_method = $_POST['payment_method'] ?? 'cash';
+    $allowed_payment_methods = ['cash', 'card', 'esewa'];
 
-  if ($payment_method === 'esewa') {
+  if (!in_array($payment_method, $allowed_payment_methods, true)) {
+    $err = 'Invalid payment method selected.';
+  } elseif ($payment_method === 'esewa') {
     $tax_percent = 13.00;
     $res = $db->query("SELECT SUM(quantity * unit_price) AS sub FROM order_items WHERE order_id={$order_id}");
     $sub = (float)$res->fetch_assoc()['sub'];
@@ -341,7 +344,6 @@ $db->close();
         <option value="cash">💵 Cash</option>
         <option value="card">💳 Card</option>
         <option value="esewa">📱 eSewa</option>
-        <option value="khalti">📱 Khalti</option>
       </select>
       <button type="submit" name="finalize" class="btn-primary">Mark as Paid &amp; Generate Bill</button>
     </form>
