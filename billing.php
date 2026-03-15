@@ -17,6 +17,11 @@ function appBaseUrl(): string {
   return $scheme . '://' . $_SERVER['HTTP_HOST'];
 }
 
+function appBasePath(): string {
+  $path = rtrim(str_replace('\\', '/', dirname((string)($_SERVER['SCRIPT_NAME'] ?? '/'))), '/');
+  return ($path === '.' || $path === '/') ? '' : $path;
+}
+
 function formatAmount(float $amount): string {
   return number_format($amount, 2, '.', '');
 }
@@ -208,8 +213,9 @@ $esewa_pending = ($order_id > 0) ? ($_SESSION['esewa_pending'][$order_id] ?? nul
 $esewa_form_data = null;
 
 if ($order && !$bill && $esewa_mode && $esewa_pending) {
-  $success_url = appBaseUrl() . '/billing.php?order_id=' . $order_id . '&esewa_status=success';
-  $failure_url = appBaseUrl() . '/billing.php?order_id=' . $order_id . '&esewa_status=failure';
+  $callback_base = appBaseUrl() . appBasePath() . '/billing.php';
+  $success_url = $callback_base . '?order_id=' . $order_id . '&esewa_status=success';
+  $failure_url = $callback_base . '?order_id=' . $order_id . '&esewa_status=failure';
 
   $esewa_form_data = [
     'amount' => $esewa_pending['total_amount'],
