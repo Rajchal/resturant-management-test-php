@@ -65,6 +65,8 @@ function decodeEsewaDataPayload(string $rawData): ?array {
   $candidates = [
     $rawData,
     urldecode($rawData),
+    rawurldecode($rawData),
+    urldecode(urldecode($rawData)),
     str_replace(' ', '+', $rawData),
     str_replace(' ', '+', urldecode($rawData)),
   ];
@@ -162,22 +164,31 @@ if (!isset($_POST['finalize']) && (
   }
 
   $status_hint = strtolower((string)($callback['esewa_status'] ?? ''));
+  $payload_status = strtoupper(trim((string)($payload['status'] ?? '')));
 
-  $isPayloadComplete = strtoupper((string)($payload['status'] ?? '')) === 'COMPLETE';
+  $isVerified = is_array($payload) && verifyEsewaResponse($payload);
+  $isTxnMatch = (string)($payload['transaction_uuid'] ?? '') === (string)$pending['transaction_uuid'];
+  $isAmountMatch = isset($payload['total_amount']) && abs((float)$payload['total_amount'] - (float)$pending['total_amount']) < 0.01;
+  $isProductCodeMatch = (string)($payload['product_code'] ?? '') === ESEWA_PRODUCT_CODE;
 
-  if ($status_hint === 'success' || $isPayloadComplete) {
-    $isVerified = is_array($payload) && verifyEsewaResponse($payload);
-    $isComplete = $isPayloadComplete;
-    $isTxnMatch = (string)($payload['transaction_uuid'] ?? '') === (string)$pending['transaction_uuid'];
-    $isAmountMatch = isset($payload['total_amount']) && abs((float)$payload['total_amount'] - (float)$pending['total_amount']) < 0.01;
-    $isProductCodeMatch = (string)($payload['product_code'] ?? '') === ESEWA_PRODUCT_CODE;
+  $isExplicitFailure = in_array($status_hint, ['failure', 'failed', 'cancel', 'cancelled'], true)
+    || in_array($payload_status, ['FAILED', 'FAILURE', 'CANCELLED', 'CANCELED'], true);
 
-    if ($isVerified && $isComplete && $isTxnMatch && $isAmountMatch && $isProductCodeMatch && finalizeOrderPayment($db, $order_id, 'esewa')) {
-      unset($_SESSION['esewa_pending'][$order_id]);
-      header('Location: billing.php?print=' . $order_id);
-      exit;
-    }
+  $isSuccessLikeStatus = $status_hint === 'success'
+    || in_array($payload_status, ['COMPLETE', 'SUCCESS', ''], true);
 
+  if ($isVerified && $isTxnMatch && $isAmountMatch && $isProductCodeMatch && $isSuccessLikeStatus && finalizeOrderPayment($db, $order_id, 'esewa')) {
+    unset($_SESSION['esewa_pending'][$order_id]);
+    header('Location: billing.php?print=' . $order_id);
+    exit;
+  }
+
+  if ($isExplicitFailure) {
+    header('Location: billing.php?order_id=' . $order_id . '&esewa=1&err=' . urlencode('eSewa payment was cancelled or failed.'));
+    exit;
+  }
+
+  if ($status_hint === 'success' || is_array($payload)) {
     header('Location: billing.php?order_id=' . $order_id . '&esewa=1&err=' . urlencode('eSewa verification failed. Please retry payment.'));
     exit;
   }
