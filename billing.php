@@ -50,6 +50,46 @@ function verifyEsewaResponse(array $payload): bool {
   return hash_equals($expected, (string)$payload['signature']);
 }
 
+function decodeEsewaDataPayload(string $rawData): ?array {
+  $rawData = trim($rawData);
+  if ($rawData === '') {
+    return null;
+  }
+
+  // Some callbacks send decoded JSON directly instead of base64.
+  if ($rawData[0] === '{') {
+    $json = json_decode($rawData, true);
+    return is_array($json) ? $json : null;
+  }
+
+  $candidates = [
+    $rawData,
+    urldecode($rawData),
+    str_replace(' ', '+', $rawData),
+    str_replace(' ', '+', urldecode($rawData)),
+  ];
+
+  foreach ($candidates as $candidate) {
+    $base64 = strtr($candidate, '-_', '+/');
+    $padding = strlen($base64) % 4;
+    if ($padding > 0) {
+      $base64 .= str_repeat('=', 4 - $padding);
+    }
+
+    $decoded = base64_decode($base64, true);
+    if ($decoded === false) {
+      continue;
+    }
+
+    $json = json_decode($decoded, true);
+    if (is_array($json)) {
+      return $json;
+    }
+  }
+
+  return null;
+}
+
 function finalizeOrderPayment(mysqli $db, int $orderId, string $paymentMethod, float $taxPercent = 13.00): bool {
   $res = $db->query("SELECT SUM(quantity * unit_price) AS sub FROM order_items WHERE order_id={$orderId}");
   $sub = (float)$res->fetch_assoc()['sub'];
@@ -85,9 +125,35 @@ if (session_status() === PHP_SESSION_NONE) {
   session_start();
 }
 
-if (isset($_REQUEST['esewa_status'], $_REQUEST['order_id']) && !isset($_POST['finalize'])) {
+if (!isset($_POST['finalize']) && (
+  isset($_REQUEST['data']) ||
+  isset($_REQUEST['esewa_status']) ||
+  (isset($_REQUEST['signed_field_names']) && isset($_REQUEST['signature']))
+)) {
   $callback = array_merge($_GET, $_POST);
-  $order_id = (int)$callback['order_id'];
+  $order_id = (int)($callback['order_id'] ?? 0);
+
+  $payload = null;
+  if (isset($callback['data'])) {
+    $payload = decodeEsewaDataPayload((string)$callback['data']);
+  }
+
+  if (!is_array($payload) && isset($callback['signed_field_names'], $callback['signature'])) {
+    $payload = $callback;
+  }
+
+  if ($order_id <= 0) {
+    $txnUuid = (string)($payload['transaction_uuid'] ?? '');
+    if (preg_match('/^ORD-(\d+)-/', $txnUuid, $m)) {
+      $order_id = (int)$m[1];
+    }
+  }
+
+  if ($order_id <= 0 && !empty($_SESSION['esewa_pending']) && is_array($_SESSION['esewa_pending']) && count($_SESSION['esewa_pending']) === 1) {
+    $keys = array_keys($_SESSION['esewa_pending']);
+    $order_id = (int)$keys[0];
+  }
+
   $pending = $_SESSION['esewa_pending'][$order_id] ?? null;
 
   if (!$pending) {
@@ -96,16 +162,6 @@ if (isset($_REQUEST['esewa_status'], $_REQUEST['order_id']) && !isset($_POST['fi
   }
 
   $status_hint = strtolower((string)($callback['esewa_status'] ?? ''));
-  $encodedResponse = (string)($callback['data'] ?? '');
-  if ($encodedResponse !== '') {
-    $encodedResponse = str_replace(' ', '+', $encodedResponse);
-  }
-  $decodedResponse = base64_decode($encodedResponse, true);
-  $payload = $decodedResponse ? json_decode($decodedResponse, true) : null;
-
-  if (!is_array($payload) && isset($callback['signed_field_names'], $callback['signature'])) {
-    $payload = $callback;
-  }
 
   $isPayloadComplete = strtoupper((string)($payload['status'] ?? '')) === 'COMPLETE';
 
