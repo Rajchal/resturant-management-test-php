@@ -85,8 +85,9 @@ if (session_status() === PHP_SESSION_NONE) {
   session_start();
 }
 
-if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['esewa_status'], $_GET['order_id'])) {
-  $order_id = (int)$_GET['order_id'];
+if (isset($_REQUEST['esewa_status'], $_REQUEST['order_id']) && !isset($_POST['finalize'])) {
+  $callback = array_merge($_GET, $_POST);
+  $order_id = (int)$callback['order_id'];
   $pending = $_SESSION['esewa_pending'][$order_id] ?? null;
 
   if (!$pending) {
@@ -94,14 +95,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['esewa_status'], $_GET['
     exit;
   }
 
-  if ($_GET['esewa_status'] === 'success') {
-    $encodedResponse = (string)($_GET['data'] ?? '');
+  $status_hint = strtolower((string)($callback['esewa_status'] ?? ''));
+  $encodedResponse = (string)($callback['data'] ?? '');
+  if ($encodedResponse !== '') {
     $encodedResponse = str_replace(' ', '+', $encodedResponse);
-    $decodedResponse = base64_decode($encodedResponse, true);
-    $payload = $decodedResponse ? json_decode($decodedResponse, true) : null;
+  }
+  $decodedResponse = base64_decode($encodedResponse, true);
+  $payload = $decodedResponse ? json_decode($decodedResponse, true) : null;
 
+  if (!is_array($payload) && isset($callback['signed_field_names'], $callback['signature'])) {
+    $payload = $callback;
+  }
+
+  $isPayloadComplete = strtoupper((string)($payload['status'] ?? '')) === 'COMPLETE';
+
+  if ($status_hint === 'success' || $isPayloadComplete) {
     $isVerified = is_array($payload) && verifyEsewaResponse($payload);
-    $isComplete = strtoupper((string)($payload['status'] ?? '')) === 'COMPLETE';
+    $isComplete = $isPayloadComplete;
     $isTxnMatch = (string)($payload['transaction_uuid'] ?? '') === (string)$pending['transaction_uuid'];
     $isAmountMatch = isset($payload['total_amount']) && abs((float)$payload['total_amount'] - (float)$pending['total_amount']) < 0.01;
     $isProductCodeMatch = (string)($payload['product_code'] ?? '') === ESEWA_PRODUCT_CODE;
