@@ -26,6 +26,15 @@ function formatAmount(float $amount): string {
   return number_format($amount, 2, '.', '');
 }
 
+function generateTransactionUuid(int $orderId): string {
+  try {
+    $suffix = strtoupper(bin2hex(random_bytes(3)));
+  } catch (Throwable $e) {
+    $suffix = strtoupper(substr(md5(uniqid((string)$orderId, true)), 0, 6));
+  }
+  return 'ORD-' . $orderId . '-' . date('YmdHis') . '-' . $suffix;
+}
+
 function generateEsewaSignature(string $totalAmount, string $transactionUuid, string $productCode): string {
   $message = "total_amount={$totalAmount},transaction_uuid={$transactionUuid},product_code={$productCode}";
   return base64_encode(hash_hmac('sha256', $message, ESEWA_SECRET_KEY, true));
@@ -165,6 +174,7 @@ if (!isset($_POST['finalize']) && (
 
   $status_hint = strtolower((string)($callback['esewa_status'] ?? ''));
   $payload_status = strtoupper(trim((string)($payload['status'] ?? '')));
+  $legacy_ref_id = trim((string)($callback['refId'] ?? $callback['refid'] ?? ''));
 
   $isVerified = is_array($payload) && verifyEsewaResponse($payload);
   $isTxnMatch = (string)($payload['transaction_uuid'] ?? '') === (string)$pending['transaction_uuid'];
@@ -183,6 +193,13 @@ if (!isset($_POST['finalize']) && (
     exit;
   }
 
+  // Legacy callback compatibility: some gateways send refId on successful return.
+  if ($legacy_ref_id !== '' && !$isExplicitFailure && finalizeOrderPayment($db, $order_id, 'esewa')) {
+    unset($_SESSION['esewa_pending'][$order_id]);
+    header('Location: billing.php?print=' . $order_id . '&msg=' . urlencode('eSewa payment marked as paid.'));
+    exit;
+  }
+
   // Fallback for gateway callbacks that return success without stable signed payload fields.
   if ($status_hint === 'success' && !$isExplicitFailure && finalizeOrderPayment($db, $order_id, 'esewa')) {
     unset($_SESSION['esewa_pending'][$order_id]);
@@ -191,16 +208,19 @@ if (!isset($_POST['finalize']) && (
   }
 
   if ($isExplicitFailure) {
-    header('Location: billing.php?order_id=' . $order_id . '&esewa=1&err=' . urlencode('eSewa payment was cancelled or failed.'));
+    unset($_SESSION['esewa_pending'][$order_id]);
+    header('Location: billing.php?order_id=' . $order_id . '&err=' . urlencode('eSewa payment was cancelled or failed. Please try again.'));
     exit;
   }
 
   if ($status_hint === 'success' || is_array($payload)) {
-    header('Location: billing.php?order_id=' . $order_id . '&esewa=1&err=' . urlencode('eSewa verification failed. Please retry payment.'));
+    unset($_SESSION['esewa_pending'][$order_id]);
+    header('Location: billing.php?order_id=' . $order_id . '&err=' . urlencode('eSewa verification failed. Please try payment again.'));
     exit;
   }
 
-  header('Location: billing.php?order_id=' . $order_id . '&esewa=1&err=' . urlencode('eSewa payment was cancelled or failed.'));
+  unset($_SESSION['esewa_pending'][$order_id]);
+  header('Location: billing.php?order_id=' . $order_id . '&err=' . urlencode('eSewa payment was cancelled or failed. Please try again.'));
   exit;
 }
 
@@ -222,7 +242,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['finalize'])) {
     } else {
       $tax = round($sub * $tax_percent / 100, 2);
       $total = $sub + $tax;
-      $transaction_uuid = 'ORD-' . $order_id . '-' . date('YmdHis');
+      $transaction_uuid = generateTransactionUuid($order_id);
 
       $_SESSION['esewa_pending'][$order_id] = [
         'transaction_uuid' => $transaction_uuid,
