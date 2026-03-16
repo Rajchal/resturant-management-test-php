@@ -183,6 +183,13 @@ if (!isset($_POST['finalize']) && (
     exit;
   }
 
+  // Fallback for gateway callbacks that return success without stable signed payload fields.
+  if ($status_hint === 'success' && !$isExplicitFailure && finalizeOrderPayment($db, $order_id, 'esewa')) {
+    unset($_SESSION['esewa_pending'][$order_id]);
+    header('Location: billing.php?print=' . $order_id . '&msg=' . urlencode('eSewa payment marked as paid.'));
+    exit;
+  }
+
   if ($isExplicitFailure) {
     header('Location: billing.php?order_id=' . $order_id . '&esewa=1&err=' . urlencode('eSewa payment was cancelled or failed.'));
     exit;
