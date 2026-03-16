@@ -132,6 +132,31 @@ function finalizeOrderPayment(mysqli $db, int $orderId, string $paymentMethod, f
   return true;
 }
 
+function orderAlreadyPaid(mysqli $db, int $orderId): bool {
+  if ($orderId <= 0) {
+    return false;
+  }
+
+  $stmt = $db->prepare("SELECT id FROM bills WHERE order_id=? LIMIT 1");
+  $stmt->bind_param('i', $orderId);
+  $stmt->execute();
+  $stmt->store_result();
+  $hasBill = $stmt->num_rows > 0;
+  $stmt->close();
+
+  if ($hasBill) {
+    return true;
+  }
+
+  $stmt = $db->prepare("SELECT status FROM orders WHERE id=? LIMIT 1");
+  $stmt->bind_param('i', $orderId);
+  $stmt->execute();
+  $result = $stmt->get_result()->fetch_assoc();
+  $stmt->close();
+
+  return isset($result['status']) && $result['status'] === 'paid';
+}
+
 if (session_status() === PHP_SESSION_NONE) {
   session_start();
 }
@@ -163,6 +188,12 @@ if (!isset($_POST['finalize']) && (
   if ($order_id <= 0 && !empty($_SESSION['esewa_pending']) && is_array($_SESSION['esewa_pending']) && count($_SESSION['esewa_pending']) === 1) {
     $keys = array_keys($_SESSION['esewa_pending']);
     $order_id = (int)$keys[0];
+  }
+
+  if (orderAlreadyPaid($db, $order_id)) {
+    unset($_SESSION['esewa_pending'][$order_id]);
+    header('Location: billing.php?print=' . $order_id . '&msg=' . urlencode('Payment already completed.'));
+    exit;
   }
 
   $pending = $_SESSION['esewa_pending'][$order_id] ?? null;
@@ -313,6 +344,13 @@ if (isset($_GET['msg'])) {
 }
 if (isset($_GET['err'])) {
   $err = (string)$_GET['err'];
+}
+
+if ($bill && $err !== '') {
+  $err = '';
+  if ($msg === '') {
+    $msg = 'Payment already completed.';
+  }
 }
 
 $esewa_mode = isset($_GET['esewa']) && $_GET['esewa'] === '1';
