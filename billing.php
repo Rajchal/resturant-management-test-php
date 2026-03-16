@@ -190,6 +190,22 @@ if (!isset($_POST['finalize']) && (
     $order_id = (int)$keys[0];
   }
 
+  $status_hint = strtolower((string)($callback['esewa_status'] ?? ''));
+  $payload_status = strtoupper(trim((string)($payload['status'] ?? '')));
+  $legacy_ref_id = trim((string)($callback['refId'] ?? $callback['refid'] ?? ''));
+
+  if ($order_id > 0 && (
+    $status_hint === 'success' ||
+    in_array($payload_status, ['COMPLETE', 'SUCCESS'], true) ||
+    $legacy_ref_id !== ''
+  )) {
+    if (orderAlreadyPaid($db, $order_id) || finalizeOrderPayment($db, $order_id, 'esewa')) {
+      unset($_SESSION['esewa_pending'][$order_id]);
+      header('Location: billing.php?print=' . $order_id . '&msg=' . urlencode('Payment marked as paid.'));
+      exit;
+    }
+  }
+
   if (orderAlreadyPaid($db, $order_id)) {
     unset($_SESSION['esewa_pending'][$order_id]);
     header('Location: billing.php?print=' . $order_id . '&msg=' . urlencode('Payment already completed.'));
@@ -202,10 +218,6 @@ if (!isset($_POST['finalize']) && (
     header('Location: billing.php?order_id=' . $order_id . '&err=' . urlencode('No pending eSewa payment found for this order.'));
     exit;
   }
-
-  $status_hint = strtolower((string)($callback['esewa_status'] ?? ''));
-  $payload_status = strtoupper(trim((string)($payload['status'] ?? '')));
-  $legacy_ref_id = trim((string)($callback['refId'] ?? $callback['refid'] ?? ''));
 
   $isVerified = is_array($payload) && verifyEsewaResponse($payload);
   $isTxnMatch = (string)($payload['transaction_uuid'] ?? '') === (string)$pending['transaction_uuid'];
